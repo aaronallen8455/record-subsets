@@ -23,6 +23,7 @@ module Data.RecordSubset
   , objectSubset
   , (.=|)
   , (.:|)
+  , (.:|?)
   -- * Lens
   , fieldLens
   ) where
@@ -152,6 +153,10 @@ infixr 8 .=|
 (.:|) :: (Applicative (FieldWrapper s), Aeson.FromJSON v)
       => Aeson.Object -> T.Text -> Aeson.Parser (FieldWrapper s v)
 o .:| k = sequenceA $ pure (o Aeson..: k)
+
+(.:|?) :: (Applicative (FieldWrapper s), Aeson.FromJSON v)
+       => Aeson.Object -> T.Text -> Aeson.Parser (FieldWrapper s (Maybe v))
+o .:|? k = pure <$> o Aeson..:? k
 
 --------------------------------------------------------------------------------
 -- Lens
