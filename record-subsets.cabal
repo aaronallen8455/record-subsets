@@ -1,0 +1,72 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.33.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 995b72077c149d8bf01969bdd1be2fbfe509c9fca79b2d898af7c8bc4cd23a0f
+
+name:           record-subsets
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/aaronallen8455/record-subsets#readme>
+homepage:       https://github.com/aaronallen8455/record-subsets#readme
+bug-reports:    https://github.com/aaronallen8455/record-subsets/issues
+author:         Aaron Allen
+maintainer:     aaronallen8455@gmail.com
+copyright:      2020 Aaron Allen
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    ChangeLog.md
+
+source-repository head
+  type: git
+  location: https://github.com/aaronallen8455/record-subsets
+
+library
+  exposed-modules:
+      Data.RecordSubset
+  other-modules:
+      Paths_record_subsets
+  hs-source-dirs:
+      src
+  ghc-options: -fwarn-incomplete-patterns -Wall
+  build-depends:
+      aeson
+    , base >=4.7 && <5
+    , text
+  default-language: Haskell2010
+
+executable example-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_record_subsets
+  hs-source-dirs:
+      example
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      aeson
+    , base >=4.7 && <5
+    , record-subsets
+    , text
+  default-language: Haskell2010
+
+test-suite record-subsets-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_record_subsets
+  hs-source-dirs:
+      test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      aeson
+    , base >=4.7 && <5
+    , hedgehog
+    , record-subsets
+    , tasty
+    , tasty-hedgehog
+    , text
+  default-language: Haskell2010
