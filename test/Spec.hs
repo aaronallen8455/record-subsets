@@ -27,11 +27,11 @@ tests =
       HH.tripping f encode decode
       a <- HH.forAll (fooGen :: HH.Gen (Foo (Subset 'A)))
       HH.tripping a encode decode
-      b <- HH.forAll (fooGen :: HH.Gen (Foo (Subset 'A)))
+      b <- HH.forAll (fooGen :: HH.Gen (Foo (Subset 'B)))
       HH.tripping b encode decode
-      c <- HH.forAll (fooGen :: HH.Gen (Foo (Subset 'A)))
+      c <- HH.forAll (fooGen :: HH.Gen (Foo (Subset 'C)))
       HH.tripping c encode decode
-      d <- HH.forAll (fooGen :: HH.Gen (Foo (Subset 'A)))
+      d <- HH.forAll (fooGen :: HH.Gen (Foo (Subset 'D)))
       HH.tripping d encode decode
       e <- HH.forAll (fooGen :: HH.Gen (Foo EmptySet))
       HH.tripping e encode decode
@@ -115,9 +115,3 @@ barGen :: HH.Gen Bar
 barGen = Bar
   <$> Gen.integral (HH.constant minBound maxBound)
   <*> Gen.maybe (Gen.integral $ HH.constant minBound maxBound)
-
---fooAGen :: HH.Gen FooA
---fooAGen = Foo
---     <$>
---     <*>
---

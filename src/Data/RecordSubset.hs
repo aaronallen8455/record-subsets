@@ -126,6 +126,8 @@ instance Ord a => Ord (FieldWrapper s a) where
 -- Aeson
 --------------------------------------------------------------------------------
 
+-- this instance is okay to use with .:? but shouldn't be relied on for .:
+-- use .:| instead.
 instance (Applicative (FieldWrapper s), Aeson.FromJSON a)
     => Aeson.FromJSON (FieldWrapper s a) where
   parseJSON = fmap pure . Aeson.parseJSON
