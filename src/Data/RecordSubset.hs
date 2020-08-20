@@ -5,12 +5,17 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE UndecidableInstances #-} -- for nested type families
 module Data.RecordSubset
   ( -- * Core Types
     type SubsetSelector
   , type Subset
   , type FullSet
   , type EmptySet
+  , type Union
+  , type Intersection
+  , type Difference
+  , type SymDiff
   , type FieldStatus
   , type FieldOn
   , type FieldOff
@@ -41,22 +46,30 @@ data SubsetSelector label
   = Subset label
   | FullSet
   | EmptySet
+  | Union (SubsetSelector label) (SubsetSelector label)
+  | Intersection (SubsetSelector label) (SubsetSelector label)
+  | Difference (SubsetSelector label) (SubsetSelector label)
+  | SymDiff (SubsetSelector label) (SubsetSelector label)
 
-type Subset label = 'Subset label
-type FullSet  = 'FullSet
-type EmptySet = 'EmptySet
+-- | Selects the subset of fields for the given label
+type Subset label     = 'Subset label
+-- | Selects the full set of fields
+type FullSet          = 'FullSet
+-- | Selects the empty set
+type EmptySet         = 'EmptySet
+-- | Selects the union of two subsets
+type Union a b        = 'Union a b
+-- | Selects the intersection of two subsets
+type Intersection a b = 'Intersection a b
+-- | Removes members of the second subset from the first
+type Difference a b   = 'Difference a b
+-- | The symmetric difference of two subsets
+type SymDiff a b      = 'SymDiff a b
 
 data FieldStatus = FieldOn | FieldOff
 
 type FieldOn  = 'FieldOn
 type FieldOff = 'FieldOff
-
-type family GetFieldStatus (s :: SubsetSelector l) (p :: [l]) :: FieldStatus where
-  GetFieldStatus 'FullSet any = 'FieldOn
-  GetFieldStatus 'EmptySet any = 'FieldOff
-  GetFieldStatus ('Subset s) (s ': rest) = 'FieldOn
-  GetFieldStatus s (x ': rest) = GetFieldStatus s rest
-  GetFieldStatus s '[] = 'FieldOff
 
 data FieldWrapper (s :: FieldStatus) a where
   Wrapped :: a -> FieldWrapper 'FieldOn a
@@ -70,6 +83,41 @@ getField (Wrapped a) = a
 fieldToMaybe :: FieldWrapper s a -> Maybe a
 fieldToMaybe (Wrapped a) = Just a
 fieldToMaybe Nil = Nothing
+
+--------------------------------------------------------------------------------
+-- Type Functions
+--------------------------------------------------------------------------------
+
+type family Conjunction (a :: FieldStatus) (b :: FieldStatus) :: FieldStatus where
+  Conjunction 'FieldOn 'FieldOn = 'FieldOn
+  Conjunction a        b        = 'FieldOff
+
+type family Disjunction (a :: FieldStatus) (b :: FieldStatus) :: FieldStatus where
+  Disjunction 'FieldOff 'FieldOff = 'FieldOff
+  Disjunction a         b         = 'FieldOn
+
+type family Exclusive (a :: FieldStatus) (b :: FieldStatus) :: FieldStatus where
+  Exclusive 'FieldOn  'FieldOn  = 'FieldOff
+  Exclusive 'FieldOff 'FieldOff = 'FieldOff
+  Exclusive a         b         = 'FieldOn
+
+type family Negate (a :: FieldStatus) :: FieldStatus where
+  Negate 'FieldOn  = 'FieldOff
+  Negate 'FieldOff = 'FieldOn
+
+type family GetFieldStatus (s :: SubsetSelector l) (p :: [l]) :: FieldStatus where
+  -- Constants
+  GetFieldStatus 'FullSet any            = 'FieldOn
+  GetFieldStatus 'EmptySet any           = 'FieldOff
+  -- Set operations
+  GetFieldStatus (Union a b) ss          = Disjunction (GetFieldStatus a ss) (GetFieldStatus b ss)
+  GetFieldStatus (Intersection a b) ss   = Conjunction (GetFieldStatus a ss) (GetFieldStatus b ss)
+  GetFieldStatus (Difference a b) ss     = Conjunction (GetFieldStatus a ss) (Negate (GetFieldStatus b ss))
+  GetFieldStatus (SymDiff a b) ss        = Exclusive (GetFieldStatus a ss) (GetFieldStatus b ss)
+  -- Linear search
+  GetFieldStatus ('Subset s) (s ': rest) = 'FieldOn
+  GetFieldStatus s (x ': rest)           = GetFieldStatus s rest
+  GetFieldStatus s '[]                   = 'FieldOff
 
 --------------------------------------------------------------------------------
 -- Typeclass Instances
