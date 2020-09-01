@@ -24,19 +24,9 @@ module Data.RecordSubset
   , FieldWrapper(..)
   , getField
   , fieldToMaybe
-  -- * Aeson
-  , objectSubset
-  , (.=|)
-  , (.:|)
-  , (.:|?)
   -- * Lens
   , fieldLens
   ) where
-
-import qualified Data.Aeson as Aeson
-import qualified Data.Aeson.Types as Aeson
-import           Data.Maybe (mapMaybe)
-import qualified Data.Text as T
 
 --------------------------------------------------------------------------------
 -- Core Types
@@ -71,15 +61,26 @@ data FieldStatus = FieldOn | FieldOff
 type FieldOn  = 'FieldOn
 type FieldOff = 'FieldOff
 
+-- | A wrapper that is on or off based on it's @FieldStatus@ type argument, which
+-- is calculated by checking that a SubsetSelector is compatible with the list
+-- of subset IDs for the field.
 data FieldWrapper (s :: FieldStatus) a where
   Wrapped :: a -> FieldWrapper 'FieldOn a
   Nil     :: FieldWrapper 'FieldOff a
 
-type SubsetField a t ts = FieldWrapper (GetFieldStatus t ts) a
+-- | Use this to wrap record fields that are part of subsets. The first argument
+-- is the field's type, the second is a subset identifier (over which the record
+-- type is parameterized), the third is the list of subsets that the field
+-- belongs to.
+type SubsetField (a :: *) (t :: SubsetSelector k) (ts :: [k])
+  = FieldWrapper (GetFieldStatus t ts) a
 
-getField :: FieldWrapper FieldOn a -> a
+-- | Retrieve the value from an active field.
+getField :: FieldWrapper 'FieldOn a -> a
 getField (Wrapped a) = a
 
+-- | Convert any @FieldWrapper@ to a @Maybe@. Useful to write code that works over
+-- both active and inactive fields.
 fieldToMaybe :: FieldWrapper s a -> Maybe a
 fieldToMaybe (Wrapped a) = Just a
 fieldToMaybe Nil = Nothing
@@ -97,9 +98,8 @@ type family Disjunction (a :: FieldStatus) (b :: FieldStatus) :: FieldStatus whe
   Disjunction a         b         = 'FieldOn
 
 type family Exclusive (a :: FieldStatus) (b :: FieldStatus) :: FieldStatus where
-  Exclusive 'FieldOn  'FieldOn  = 'FieldOff
-  Exclusive 'FieldOff 'FieldOff = 'FieldOff
-  Exclusive a         b         = 'FieldOn
+  Exclusive x x = 'FieldOff
+  Exclusive a b = 'FieldOn
 
 type family Negate (a :: FieldStatus) :: FieldStatus where
   Negate 'FieldOn  = 'FieldOff
@@ -170,41 +170,6 @@ instance Eq a => Eq (FieldWrapper b a) where
 instance Ord a => Ord (FieldWrapper s a) where
   compare (Wrapped a) (Wrapped b) = compare a b
   compare Nil Nil = EQ
-
---------------------------------------------------------------------------------
--- Aeson
---------------------------------------------------------------------------------
-
--- this instance is okay to use with .:? but shouldn't be relied on for .:
--- use .:| instead.
-instance (Applicative (FieldWrapper s), Aeson.FromJSON a)
-    => Aeson.FromJSON (FieldWrapper s a) where
-  parseJSON = fmap pure . Aeson.parseJSON
-
-newtype SubsetFieldPair =
-  SubsetFieldPair { getSubsetFieldPair :: Maybe Aeson.Pair }
-
-instance Aeson.KeyValue SubsetFieldPair where
-  a .= b = SubsetFieldPair . Just $ a Aeson..= b
-
--- | Use in place of 'object' for defining encoding of a record with subsets.
-objectSubset :: [SubsetFieldPair] -> Aeson.Value
-objectSubset = Aeson.object . mapMaybe getSubsetFieldPair
-
--- | Use this in place of '.=' for `SubsetField`s.
-(.=|) :: Aeson.ToJSON v => T.Text -> FieldWrapper s v -> SubsetFieldPair
-_   .=| Nil = SubsetFieldPair Nothing
-key .=| Wrapped v = SubsetFieldPair . Just $ key Aeson..= v
-infixr 8 .=|
-
--- | Use this in place of '.:' for `SubsetField`s.
-(.:|) :: (Applicative (FieldWrapper s), Aeson.FromJSON v)
-      => Aeson.Object -> T.Text -> Aeson.Parser (FieldWrapper s v)
-o .:| k = sequenceA $ pure (o Aeson..: k)
-
-(.:|?) :: (Applicative (FieldWrapper s), Aeson.FromJSON v)
-       => Aeson.Object -> T.Text -> Aeson.Parser (FieldWrapper s (Maybe v))
-o .:|? k = pure <$> o Aeson..:? k
 
 --------------------------------------------------------------------------------
 -- Lens

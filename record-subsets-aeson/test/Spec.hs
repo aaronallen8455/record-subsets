@@ -4,79 +4,38 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE PartialTypeSignatures #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE TypeOperators #-}
 {-# OPTIONS_GHC -fno-warn-partial-type-signatures #-}
 
+import           Data.Aeson
+import           Data.Aeson.Types
 import qualified Hedgehog as HH
-import           Hedgehog ((===))
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as HH
 import           Test.Tasty (TestTree, defaultMain, testGroup)
 import           Test.Tasty.Hedgehog (testProperty)
 
 import           Data.RecordSubset
+import           Data.RecordSubset.Aeson
 
 main :: IO ()
 main = defaultMain tests
 
 tests :: TestTree
 tests =
-  testGroup "Subsets"
-  [ testProperty "Matches expectations" . HH.property $ do
+  testGroup "JSON"
+  [ testProperty "Can round-trip through JSON" . HH.property $ do
+      f <- HH.forAll (fooGen :: HH.Gen (Foo FullSet))
+      HH.tripping f encode decode
       a <- HH.forAll (fooGen :: HH.Gen FooA)
-      let (Wrapped _x) = foo1 a
-      foo2 a === Nil
-      let (Wrapped _x) = foo3 a
-      let (Wrapped _x) = foo4 a
-
+      HH.tripping a encode decode
       b <- HH.forAll (fooGen :: HH.Gen FooB)
-      let (Wrapped _x) = foo1 b
-      foo2 b === Nil
-      foo3 b === Nil
-      let (Wrapped _x) = foo4 b
-
+      HH.tripping b encode decode
       c <- HH.forAll (fooGen :: HH.Gen FooC)
-      foo1 c === Nil
-      let (Wrapped _x) = foo2 c
-      foo3 c === Nil
-      foo4 c === Nil
-
+      HH.tripping c encode decode
       d <- HH.forAll (fooGen :: HH.Gen FooD)
-      foo1 d === Nil
-      let (Wrapped _x) = foo2 d
-      let (Wrapped _x) = foo3 d
-      let (Wrapped _x) = foo4 d
-
+      HH.tripping d encode decode
       e <- HH.forAll (fooGen :: HH.Gen (Foo EmptySet))
-      foo1 e === Nil
-      foo2 e === Nil
-      foo3 e === Nil
-      foo4 e === Nil
-
-      f <- HH.forAll (fooGen :: HH.Gen (Foo (Subset 'A `Union` Subset 'D)))
-      let (Wrapped _x) = foo1 f
-      let (Wrapped _x) = foo2 f
-      let (Wrapped _x) = foo3 f
-      let (Wrapped _x) = foo4 f
-
-      g <- HH.forAll (fooGen :: HH.Gen (Foo (Subset 'A `Intersection` Subset 'B)))
-      let (Wrapped _x) = foo1 g
-      foo2 g === Nil
-      foo3 g === Nil
-      let (Wrapped _x) = foo4 g
-
-      h <- HH.forAll (fooGen :: HH.Gen (Foo (Subset 'A `Difference` Subset 'B)))
-      foo1 h === Nil
-      foo2 h === Nil
-      let (Wrapped _x) = foo3 h
-      foo4 h === Nil
-
-      i <- HH.forAll (fooGen :: HH.Gen (Foo (Subset 'A `SymDiff` Subset 'D)))
-      let (Wrapped _x) = foo1 i
-      let (Wrapped _x) = foo2 i
-      foo3 i === Nil
-      foo4 i === Nil
+      HH.tripping e encode decode
   ]
 
 data SetId = A | B | C | D
@@ -105,6 +64,82 @@ data Baz (s :: SubsetSelector SetId) =
     { baz1 :: SubsetField String s '[ 'A, 'D]
     , baz2 :: SubsetField Int s '[ 'B ]
     } deriving (Show, Eq)
+
+instance ToJSON (Foo s) where
+  toJSON f =
+    objectSubset
+    [ "foo1" .=| foo1 f
+    , "foo2" .=| foo2 f
+    , "foo3" .=| foo3 f
+    , "foo4" .=| foo4 f
+    ]
+
+fooParser :: _ => Value -> Parser (Foo s)
+fooParser = withObject "Foo" $ \o ->
+  Foo <$> o .:| "foo1"
+      <*> o .:| "foo2"
+      <*> o .:| "foo3"
+      <*> o .:|? "foo4"
+
+instance FromJSON (Foo FullSet) where
+  parseJSON = fooParser
+
+instance FromJSON (Foo (Subset 'A)) where
+  parseJSON = fooParser
+
+instance FromJSON (Foo (Subset 'B)) where
+  parseJSON = fooParser
+
+instance FromJSON (Foo (Subset 'C)) where
+  parseJSON = fooParser
+
+instance FromJSON (Foo (Subset 'D)) where
+  parseJSON = fooParser
+
+instance FromJSON (Foo EmptySet) where
+  parseJSON = fooParser
+
+instance ToJSON Bar where
+  toJSON b =
+    object
+    [ "bar1" .= bar1 b
+    , "bar2" .= bar2 b
+    ]
+
+instance FromJSON Bar where
+  parseJSON = withObject "Bar" $ \o ->
+    Bar <$> o .: "bar1"
+        <*> o .: "bar2"
+
+bazParser :: _ => Value -> Parser (Baz s)
+bazParser = withObject "Baz" $ \o ->
+  Baz <$> o .:| "baz1"
+      <*> o .:| "baz2"
+
+instance FromJSON (Baz FullSet) where
+  parseJSON = bazParser
+
+instance FromJSON (Baz (Subset 'A)) where
+  parseJSON = bazParser
+
+instance FromJSON (Baz (Subset 'B)) where
+  parseJSON = bazParser
+
+instance FromJSON (Baz (Subset 'C)) where
+  parseJSON = bazParser
+
+instance FromJSON (Baz (Subset 'D)) where
+  parseJSON = bazParser
+
+instance FromJSON (Baz EmptySet) where
+  parseJSON = bazParser
+
+instance ToJSON (Baz s) where
+  toJSON b =
+    objectSubset
+    [ "baz1" .=| baz1 b
+    , "baz2" .=| baz2 b
+    ]
 
 fieldWrapperGen :: Applicative (FieldWrapper s) => HH.Gen a -> HH.Gen (FieldWrapper s a)
 fieldWrapperGen = fmap pure

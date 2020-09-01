@@ -31,7 +31,6 @@ data Bar =
       , bar3 :: Maybe Bool
       } deriving Show
 
--- Good to hide this constraint?
 barToFoo :: _ => Bar -> Foo subSet
 barToFoo b =
   Foo { foo1 = pure $ bar1 b

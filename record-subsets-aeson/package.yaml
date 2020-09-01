@@ -1,6 +1,6 @@
-name:                record-subsets
+name:                record-subsets-aeson
 version:             0.1.0.0
-github:              "aaronallen8455/record-subsets"
+github:              "aaronallen8455/record-subsets-aeson"
 license:             BSD3
 author:              "Aaron Allen"
 maintainer:          "aaronallen8455@gmail.com"
@@ -17,31 +17,19 @@ extra-source-files:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/aaronallen8455/record-subsets#readme>
+description:         Please see the README on GitHub at <https://github.com/aaronallen8455/record-subsets-aeson#readme>
 
 dependencies:
 - base >= 4.7 && < 5
+- aeson
+- record-subsets
 - text
 
 library:
   source-dirs: src
-  ghc-options:
-  - -fwarn-incomplete-patterns
-  - -Wall
-
-executables:
-  example-exe:
-    main:                Main.hs
-    source-dirs:         example
-    ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
-    dependencies:
-    - record-subsets
 
 tests:
-  record-subsets-test:
+  record-subsets-aeson-test:
     main:                Spec.hs
     source-dirs:         test
     ghc-options:
@@ -49,7 +37,9 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
+    - aeson
     - hedgehog
     - record-subsets
+    - record-subsets-aeson
     - tasty
     - tasty-hedgehog
